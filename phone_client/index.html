@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>Phone</title>
+	<style>
+		* {
+			-webkit-user-select: none;
+			-moz-user-select: none;
+			-ms-user-select: none;
+			user-select: none;
+		}
+		body {
+			margin: 0;
+			padding: 0;
+		}
+		.btn {
+			position: absolute;
+			width: 30%;
+			border: 2px solid #000;
+			border-radius: 6px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 3rem;
+			text-transform: uppercase;
+			font-family: Arial;
+		}
+		.btn.left {
+			left: 5%;
+			bottom: 5%;
+			height: 300px;
+		}
+		.btn.right {
+			right: 5%;
+			bottom: 5%;
+			height: 300px;
+		}
+		.btn.center {
+			left: 38%;
+			width: 23%;
+			bottom: 5%;
+			height: 300px;
+		}
+	</style>
+</head>
+<body>
+	<div class="btns">
+		<div id="btn-left" class="btn left">
+			<span>L</span>
+		</div>
+		<div id="btn-center" class="btn center">
+			<span></span>
+		</div>
+		<div id="btn-right" class="btn right">
+			<span>R</span>
+		</div>
+	</div>
+</body>
+
+<script src="https://cdn.jsdelivr.net/npm/ua-parser-js@0/dist/ua-parser.min.js"></script>
+<script>
+const uAparser = new UAParser();
+const ua = uAparser.getResult();
+
+if ('DeviceMotionEvent' in window) {
+  const onDeviceMotion = (eventData) => {
+    rotationHandler(eventData.rotationRate);
+  }  
+  window.addEventListener('devicemotion', onDeviceMotion, false);
+} else {
+  alert('No Accelerometer & Gyroscope API available');
+}
+
+const multiply = ua.browser.name === 'Chrome' ? 80 : 2;
+let rotationData = [];
+const rotationHandler = (rotation) => {
+  const a = rotation.alpha ? rotation.alpha * multiply : 0;
+  const b = rotation.beta ? rotation.beta * multiply : 0;
+  const g = rotation.gamma ? rotation.gamma * multiply : 0;
+
+  rotationData.push([a, b, g]);
+}
+
+let wsConn;
+const initWS = () => {
+  window.WebSocket = window.WebSocket || window.MozWebSocket;
+
+  const socketHostAddr = location.hostname;
+  wsConn = new WebSocket(`ws://${socketHostAddr}:1337`);
+
+  wsConn.onopen = () => {
+    console.log('ws opened');
+  };
+
+  wsConn.onclose = (e) => {
+    console.log('ws close', e);
+  };
+
+  wsConn.onerror = (error) => {
+    console.log('ws err', error);
+  };
+
+  wsConn.onmessage = (message) => {
+    try {
+      const json = JSON.parse(message.data);
+    } catch (e) {
+      console.log('This doesn\'t look like a valid JSON: ',
+          message.data);
+      return;
+    }
+  };
+}
+initWS();
+
+const sendWsMessage = (type, data) => {
+	if (wsConn && wsConn.readyState === 1) {
+		const sendData = {
+			type: type,
+			data: data,
+		};
+		wsConn.send(JSON.stringify(sendData));
+	}
+};
+
+setInterval(() => {
+	if (wsConn && wsConn.readyState === 3) {
+		initWS();
+	}
+
+	const averageA = rotationData.reduce((p, c) => p + c[0], 0) / rotationData.length;
+	const averageB = rotationData.reduce((p, c) => p + c[1], 0) / rotationData.length;
+	const averageG = rotationData.reduce((p, c) => p + c[2], 0) / rotationData.length;
+
+	sendWsMessage('move', [averageA, averageB, averageG]);
+
+	rotationData = [];
+}, 50);
+
+const btnLeft = document.getElementById('btn-left');
+btnLeft.addEventListener('touchstart', () => {
+	sendWsMessage('mousedown', 'left');
+});
+btnLeft.addEventListener('touchend', () => {
+	sendWsMessage('mouseup', 'left');
+});
+
+const btnRight = document.getElementById('btn-right');
+btnRight.addEventListener('touchstart', () => {
+	sendWsMessage('mousedown', 'right');
+});
+btnRight.addEventListener('touchend', () => {
+	sendWsMessage('mouseup', 'right');
+});
+
+let scrollStart = 0;
+const btnCenter = document.getElementById('btn-center');
+btnCenter.addEventListener('touchstart', (e) => {
+	scrollStart = e.touches[0].pageY;
+});
+btnCenter.addEventListener('touchmove', (e) => {
+	const scrolled = e.touches[0].pageY;
+	const d = scrolled - scrollStart;
+	if (Math.abs(d) > 30) {
+		sendWsMessage('scroll', d > 0 ? 'up' : 'down');
+	}
+});
+btnCenter.addEventListener('touchend', () => {
+	scrollStart = 0;
+});
+</script>
+</html>
