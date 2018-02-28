@@ -1,0 +1,79 @@
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  box-sizing: border-box;
+}
+html,
+body {
+  position: fixed;
+  overflow: hidden;
+}
+body {
+  margin: 0;
+  padding: 0;
+}
+
+#app {
+	display: flex;
+	flex-direction: column;
+	width: 100vw;
+	height: 100vh;
+	font-family: Helvetica, Arial, sans-serif;
+}
+#app header {
+	width: 100%;
+	height: 10%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 1em 0 1em;
+	border-bottom: 1px solid #d0d0d0;
+	background: #f9f9f9;
+	box-shadow: 0px 2px 6px 0px #eaeaea;
+}
+#app header .actions span {
+	cursor: pointer;
+	font-size: 1.5em;
+}
+
+#app section.main {
+	width: 100%;
+	flex: 1;
+}
+#app section.main .buttons {
+	position: absolute;
+	width: 100%;
+	height: 70%;
+	bottom: 0;
+	display: flex;
+}
+#app section.main .buttons.disabled {
+	opacity: 0.2;
+}
+#app section.main .buttons .button {
+	flex: 2;
+	border: 2px solid #e4e4e4;
+	border-bottom: 0;
+}
+#app section.main .buttons .button.left {
+	border-top-right-radius: 6px;
+	border-left: 0;
+	box-shadow: 2px -2px 6px 0px #d4d4d4;
+	background: linear-gradient(white, #f9f9f9);
+}
+#app section.main .buttons .button.scroll {
+	flex: 1;
+	margin: 0 1em 0 1em;
+	border-top-left-radius: 6px;
+	border-top-right-radius: 6px;
+	box-shadow: 0px 0px 6px 2px #d4d4d4;
+	background: linear-gradient(white, white, #dadada, white, white);
+}
+#app section.main .buttons .button.right {
+	border-top-left-radius: 6px;
+	border-right: 0;
+	box-shadow: -2px -2px 6px 0px #d4d4d4;
+	background: linear-gradient(white, #f5f5f5);
+}

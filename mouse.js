@@ -1,3 +1,4 @@
+const os = require( 'os' );
 const robot = require('robotjs');
 
 class Mouse {
@@ -6,13 +7,14 @@ class Mouse {
 
     this.maxXdelta = 600;
     this.maxYdelta = 600;
-    this.maxXspd = 1800;
-    this.maxYspd = 1600;
-    this.moveThreshold = 0.01;
+    this.maxXspd = 600;
+    this.maxYspd = 400;
+    this.moveThreshold = 0.015;
+    this.interpolationStep = 10;
 
     this.setCursorPosition(this.screenSize.width / 2 - 10, this.screenSize.height / 2 - 10);
 
-    robot.setMouseDelay(2);
+    robot.setMouseDelay(1);
   }
 
   getScreenSize() {
@@ -28,8 +30,24 @@ class Mouse {
     x = x < 0 ? 0 : x;
     y = y > this.screenSize.height ? this.screenSize.height : y;
     y = y < 0 ? 0 : y;
-    
-    robot.moveMouse(x, y);
+
+    const currPos = this.getCursorPosition();
+    const movementStep = {
+      x: (x - currPos.x) / this.interpolationStep,
+      y: (y - currPos.y) / this.interpolationStep,
+    };
+
+    let nextPos = {
+      x: currPos.x + movementStep.x, 
+      y: currPos.y + movementStep.y,
+    };
+    for (let i = 0; i < this.interpolationStep; i++) {
+      robot.moveMouse(nextPos.x, nextPos.y);
+      nextPos = {
+        x: nextPos.x + movementStep.x, 
+        y: nextPos.y + movementStep.y,
+      };
+    }
   }
 
   processMove(data) {
@@ -45,19 +63,10 @@ class Mouse {
     yRelative = (yRelative > 1 ? 1 : yRelative);
     yRelative = Math.abs(yRelative) < this.moveThreshold ? 0 : yRelative;
 
-    const goTo = [
+    this.setCursorPosition(
       currPos.x - this.maxXspd * xRelative,
-      currPos.y - this.maxYspd * yRelative,
-    ];
-
-    const diffStep = [
-      (goTo[0] - currPos.x) / 5,
-      (goTo[1] - currPos.y) / 5,
-    ];
-
-    for (let i = 0; i < 5; i++) {
-      this.setCursorPosition(currPos.x + diffStep[0], currPos.y + diffStep[1]);
-    }
+      currPos.y - this.maxYspd * yRelative
+    );
   }
 
   processButtonPress(status, button = 'left') {
@@ -69,7 +78,13 @@ class Mouse {
 
   processScroll(dir) {
     const dirMulti = dir === 'up' ? 1 : -1;
-    robot.scrollMouse(dirMulti * 1, 0);
+
+    if (os.platform() === 'win32') {
+      // Bug in robot.js library, the axes are flipped on Windows
+      robot.scrollMouse(dirMulti * 1, 0);
+    } else {
+      robot.scrollMouse(0, dirMulti * 1);
+    }
   }
 }
 module.exports = new Mouse();

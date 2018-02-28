@@ -1,23 +1,12 @@
 const os = require( 'os' );
-const fs = require('fs');
 const WebSocketServer = require('websocket').server;
 const http = require('http');
 const qrcode = require('qrcode-terminal');
+const staticServer = require('./static-server');
 const Mouse = require('./mouse');
 
 const port = 8080;
-const server = http.createServer((req, res) => {
-  // Serve the phone client file
-  fs.readFile('./phone_client/index.html', (err, data) => {
-    if (err) {
-      res.statusCode = 500;
-      res.end(`Error getting the file: ${err}.`);
-    } else {
-      res.setHeader('Content-type', 'text/html' );
-      res.end(data);
-    }
-  });
-});
+const server = http.createServer(staticServer('phone_client'));
 server.listen(port);
 
 const wsHttpServer = http.createServer().listen(1337, function() {});
@@ -27,17 +16,12 @@ const wsServer = new WebSocketServer({
 
 const connections = [];
 let lastConn = null;
-let client = null;
 
 wsServer.on('request', function(request) {
   const conn = request.accept(null, request.origin);
-  connections.push(conn);
+  console.log(`[${conn.remoteAddress}] Connection opened`);
+
   lastConn = conn;
-  console.log('new conn', conn.remoteAddress);
-  if (conn.remoteAddress.indexOf('127.0.0.1') > -1) {
-    client = conn;
-    console.log('client app connected');
-  }
 
   conn.on('message', function(message) {
     if (message.type === 'utf8') {
@@ -49,11 +33,7 @@ wsServer.on('request', function(request) {
   });
 
   conn.on('close', function(connection, reason) {
-    const connIndex = connections.findIndex(item => item.remoteAddress === conn.remoteAddress);
-    if (connIndex > -1) {
-      connections.splice(connIndex, 1);
-    }
-    console.log('conn close', conn.remoteAddress);
+    console.log(`[${conn.remoteAddress}] Connection closed: ${reason}`);
   });
 });
 
@@ -76,7 +56,7 @@ const processMessage = (conn, data) => {
       Mouse.processScroll(data.data);
       break;
     default:
-      console.log(`Unknown WS message from ${conn.remoteAddress}:`, data);
+      console.log(`[${conn.remoteAddress}] Unknown WS message:`, data);
       break;
   }
 };
@@ -94,6 +74,9 @@ Object.keys(ifaces).forEach(function (dev) {
     console.log('Please scan the following QR code to access the controller:');
     console.log(`(Or visit ${url})`);
     console.log('');
+
     qrcode.generate(url);
+
+    console.log('');
   });
 });
